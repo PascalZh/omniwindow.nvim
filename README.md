@@ -5,3 +5,4 @@
 
 ## TODO
 - [ ] fix the bugs that `easy_jk` module will leave trailing spaces when escape insert mode from a indented blank line.
+- [ ] `omniwindow.vim`: implement a lazy strategy to load the content of window.

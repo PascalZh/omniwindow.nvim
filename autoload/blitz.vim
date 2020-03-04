@@ -1,3 +1,4 @@
+let s:current_script_path = expand("<sfile>:p:h")
 let s:blitz_enable = v:false
 let s:win = 0
 let s:buf = nvim_create_buf(v:false, v:true)
@@ -13,13 +14,14 @@ let s:opts = {'relative': 'cursor', 'width': s:w, 'height': s:h, 'col': s:col, '
 "call nvim_buf_clear_namespace(0, s:ns, 0, -1)
 "call nvim_buf_set_virtual_text(0, s:ns, v:lnum+1, [["EJIwef", "ErrorMsg"]], [])
 function! blitz#input_method_open()
-    python3 << EOF
-import vim
-import sys
+    py3 import vim
+    py3 import sys
+    py3 sys.path.append(vim.eval('s:current_script_path'))
+    py3 import blitz
+    py3 import os
+    py3 os.chdir(vim.eval('s:current_script_path'))
+    "py3 vim.command('echoerr "' + os.getcwd() + '"')
 
-sys.path.append('.')
-import blitz
-EOF
     augroup blitz
         au!
         au! TextChangedI <buffer> call <SID>popup_candidate()
