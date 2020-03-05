@@ -13,3 +13,6 @@ command! ZOmniwindowToggle :call omniwindow#toggle(
 
 command! -nargs=1 -complete=file ZTranslatorSplit
             \ call translator#split('<args>')
+command! ZTranslatorPutTranslationLn call translator#put_translation_ln()
+command! ZTranslatorRefreshAll echomsg string(translator#refresh_all())
+command! -nargs=1 ZTranslatorTranslate echomsg string(translator#translate('<args>'))

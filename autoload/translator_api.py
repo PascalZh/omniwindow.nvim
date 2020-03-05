@@ -30,8 +30,9 @@
 import requests
 from random import randint
 import hashlib
+import re
 
-def translate(q):
+def get_translate_response(q):
     baidu_url = "http://api.fanyi.baidu.com/api/trans/vip/translate"
 
     appid = '20200305000393031'
@@ -41,7 +42,7 @@ def translate(q):
     md5 = hashlib.md5()
     md5.update((appid+q+salt+passwd).encode('utf-8'))
 
-    r_ = requests.get(baidu_url, params={
+    r = requests.get(baidu_url, params={
         'q': q,
         'from': 'en',
         'to': 'zh',
@@ -50,9 +51,21 @@ def translate(q):
         'sign': md5.hexdigest()
         })
     # print(r_)
-    return r_.json()
+    # return r_.json()
+    return r
 
-def escacpe_vim(s):
-    return s.replace('\\', '').replace('"', '`').replace("'", '`')
+def translate_safe(q):
+    with open('foo', 'a') as f:
+        print(q, file=f)
+    r = get_translate_response(q)
 
-# print(translate('hello'))
+    try:
+        ret_json = r.json()
+    except Exception as e:
+        return e.__repr__()
+
+    if 'trans_result' not in ret_json.keys():
+        return ret_json.__repr__()
+    else:
+        trans_result = ret_json['trans_result']
+        return [t['dst'] for t in trans_result]
