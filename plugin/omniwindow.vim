@@ -11,10 +11,5 @@ command! ZOmniwindowToggle :call omniwindow#toggle(
             \ 2 * g:omniwindow_margin,
             \ g:omniwindow_margin)
 
-command! -nargs=1 -complete=file ZSyncSplit
-            \ call sync_split#split_cmd('vsplit <args>')
-command! -nargs=+ -complete=command ZSyncSplitCmd
-            \ call sync_split#split_cmd('<args>')
-
-command! -nargs=+ -complete=file ZTranslator
-            \ call translator#edit('<args>')
+command! -nargs=1 -complete=file ZTranslatorSplit
+            \ call translator#split('<args>')
