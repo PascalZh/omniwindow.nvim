@@ -33,10 +33,12 @@ import hashlib
 import re
 
 def get_translate_response(q):
+    if not isinstance(q, str):
+        return "get_translate_response: error, q is not a str"
     baidu_url = "http://api.fanyi.baidu.com/api/trans/vip/translate"
 
     appid = '20200305000393031'
-    salt = str(randint(pow(2, 4), pow(2,32)))
+    salt = str(randint(pow(2, 16), pow(2,32)))
     passwd = 'P1jM70wUbgTg5iiIYPaU'
 
     md5 = hashlib.md5()
@@ -55,17 +57,16 @@ def get_translate_response(q):
     return r
 
 def translate_safe(q):
-    with open('foo', 'a') as f:
-        print(q, file=f)
     r = get_translate_response(q)
+    return r.text
 
-    try:
-        ret_json = r.json()
-    except Exception as e:
-        return e.__repr__()
+    # try:
+        # ret_json = r.json()
+    # except Exception as e:
+        # return [e.__repr__()]
 
-    if 'trans_result' not in ret_json.keys():
-        return ret_json.__repr__()
-    else:
-        trans_result = ret_json['trans_result']
-        return [t['dst'] for t in trans_result]
+    # if 'trans_result' not in ret_json.keys():
+        # return [ret_json.__repr__()]
+    # else:
+        # trans_result = ret_json['trans_result']
+        # return [t['dst'] for t in trans_result]

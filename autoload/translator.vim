@@ -10,6 +10,7 @@ let s:current_path = expand('<sfile>:p:h')
 
 let s:py_inited = v:false
 
+" function! translator#split(args) {{{
 function! translator#split(args)
     if a:args == '--help'
         echo "run :ZTranslatorSplit src dst or open src first and run :ZTranslatorSplit dst"
@@ -41,17 +42,18 @@ function! translator#split(args)
     setlocal scrollbind|setlocal cursorbind
     setlocal cursorline
 
-    call translator#refresh_all()
     augroup Z_Translator
         au!
         au! InsertEnter <buffer> call <SID>open_translator_win()
         au! InsertLeave <buffer> call <SID>close_translator_win()
     augroup END
 
-    echom "In order to exchange data between python3 and vimL, ' and \" are replaced with `, \\ are all deleted from the translated text."
 endfunction
+" }}}
 
+" function! s:open_translator_win() {{{
 function! s:open_translator_win()
+    call nvim_buf_set_lines(s:buf_ui, 0, 99999, v:false, [''])
     let pos_ = winline()
     let width_ = nvim_win_get_width(0)
 
@@ -65,49 +67,89 @@ function! s:open_translator_win()
     let s:win_ui = nvim_open_win(s:buf_ui, v:false, s:opts)
     call nvim_buf_set_lines(s:buf_ui, 0, 99999, v:false, [content_])
 endfunction
+" }}}
 
-
+" fun! s:close_translator_win() {{{
 fun! s:close_translator_win()
     call nvim_win_close(s:win_ui, v:false)
 endf
+" }}}
 
+" fun! s:get_current_line_translation() {{{
 fun! s:get_current_line_translation()
     let cur_line = line('.') - 1
     let src_line = nvim_buf_get_lines(s:buf_src, cur_line, cur_line+1, v:false)
     if src_line == []
         let content_ = 'No corresponding line in the source file.'
     else
-        if !has_key(s:translated, src_line[0])
-            if has_key(s:translated, src_line[0].s:mark_empty_line)
+        let idx = substitute(substitute(src_line[0], '^\s*', '', ''), '\s*$', '', '')
+        if !has_key(s:translated, idx)
+            if idx == ''
                 let content_ = ''
             else
-                let content_ = 'Loading...'
+                let content_ = translator#translate(idx)[0]
             endif
         else
-            let content_ = s:translated[src_line[0]]
+            let content_ = s:translated[idx]
         endif
     endif
     return content_
 endf
+" }}}
 
+" fun! translator#put_translation_ln() {{{
 fun! translator#put_translation_ln()
     let cur_line = line('.') - 1
     call nvim_buf_set_lines(0, cur_line, cur_line+1, v:false
                 \ , [<SID>get_current_line_translation()])
 endf
+" }}}
 
+" fun! translator#translate(src) {{{
 fun! translator#translate(src)
     echo "Translating..."
     if type(a:src) != type('')
-        echoerr "a:src should be a string!"
+        echom "a:src should be a string!"
         return
+    elseif len(a:src) > 5000
+        echom "a:src is big than 5000 characters, translating may be failing."
     endif
     call <SID>init_py()
-    python3 src = vim.eval('a:src')
-    python3 r = translate_safe(src)
-    return py3eval('r')
+    python3 << EOF
+src = vim.eval('a:src')
+r = translate_safe(src)
+EOF
+    return <SID>parse_response(py3eval('r'))
 endf
+" }}}
 
+" fun s:parse_response(r) {{{
+fun! s:parse_response(r)
+    if type(a:r) != type('') || a:r == ''
+        echom "s:parse_response(r): a:r is not string or empty!   a:r=".
+                    \ string(a:r)
+        return []
+    endif
+    let r_ = eval(a:r)
+    if type(r_) != type({})
+        echom "s:parse_response(r): eval(a:r) is not a dict!   eval(a:r)=".
+                    \ string(r_).
+                    \ "    a:r=".string(a:r)
+        return []
+    endif
+    let ret = []
+    if has_key(r_, 'trans_result')
+        let ts_ = r_['trans_result']
+        for t_ in ts_
+            let s:translated[t_['src']] = t_['dst']
+            let ret += [t_['dst']]
+        endfor
+    endif
+    return ret
+endf
+" }}}
+
+" fun! s:init_py() {{{
 fun! s:init_py()
     if !s:py_inited
         python3 << EOF
@@ -123,31 +165,60 @@ EOF
         return
     endif
 endf
+" }}}
 
-fun! translator#refresh_all()
-    unlet s:translated
-    let s:translated = {}
+" fun! translator#refresh_all_v1() {{{
+fun! translator#refresh_all_v1()
     " this variable makes Baidu output the translated list of the same length.
     let s:mark_empty_line = string(localtime())
     let src_ = nvim_buf_get_lines(s:buf_src, 0, 99999, v:false)
     let src__ = []
     for l_ in src_
-        if match(l_, '\p') == -1
+        if match(l_, '^\s*$') != -1
             let src__ += [l_.s:mark_empty_line]
         else
             let src__ += [l_]
         endif
     endfor
-    let dst_ = translator#translate(join(src__, "\n"))
-    let i = 0
-    for l__ in src__
-        if match(l__, s:mark_empty_line) != -1
-            let s:translated[l__] = ''
-            let dst_[i] = ''
-        else
-            let s:translated[l__] = dst_[i]
-        endif
-        let i += 1
-    endfor
-    return dst_
+    let src__ = join(src__, "\n")
+    call translator#translate(src__)
 endf
+" }}}
+
+" fun! translator#refresh_all_v2_job() {{{
+fun! translator#refresh_all_v2_job()
+    " this function has some encode problems
+    let s:mark_empty_line = string(localtime())
+    let src_ = nvim_buf_get_lines(s:buf_src, 0, 99999, v:false)
+    let src__ = []
+    for l_ in src_
+        if match(l_, '^\s*$') != -1
+            let src__ += [l_.s:mark_empty_line]
+        else
+            let src__ += [l_]
+        endif
+    endfor
+
+    let s:chunks = ['']
+    func! s:on_stdout(job_id, data, event) dict
+        let s:chunks[-1] .= a:data[0]
+        call <SID>parse_response(s:chunks[-1])
+        call extend(s:chunks, a:data[1:])
+    endf
+    func! s:on_stderr(job_id, data, event) dict
+        echom 'stderr: '.string(a:data)
+    endf
+
+    let s:job = jobstart(['python3',  s:current_path.'/translator_job.py'], {
+                \ 'on_stdout': function('s:on_stdout'),
+                \ 'on_stderr': function('s:on_stderr')
+                \ })
+    call chansend(s:job, src__)
+endf
+" }}}
+
+" fun translator#stop_translator_job() {{{
+fun translator#stop_translator_job()
+    call jobstop(s:job)
+endf
+" }}}
