@@ -9,6 +9,7 @@ let s:translated = {}
 let s:current_path = expand('<sfile>:p:h')
 
 let s:py_inited = v:false
+let s:allow_translate = v:true
 
 " function! translator#split(args) {{{
 function! translator#split(args)
@@ -75,6 +76,25 @@ fun! s:close_translator_win()
 endf
 " }}}
 
+" fun! translator#put_ln(n_line) {{{
+fun! translator#put_ln(n_line)
+    let n = str2nr(a:n_line)
+    if  n < 1
+        echom "translator#put_ln(n_line): n_line is required to be a number > 0."
+        return
+    endif
+    for i in range(1, n-1)
+        let cur_line = line('.') - 1
+        call nvim_buf_set_lines(0, cur_line, cur_line+1, v:false
+                    \ , [<SID>get_current_line_translation()])
+        normal! o
+    endfor
+    " a extra normal! o is executed, thus need to fill this blank line.
+    let cur_line = line('.') - 1
+    call nvim_buf_set_lines(0, cur_line, cur_line+1, v:false
+endf
+" }}}
+
 " fun! s:get_current_line_translation() {{{
 fun! s:get_current_line_translation()
     let cur_line = line('.') - 1
@@ -87,7 +107,8 @@ fun! s:get_current_line_translation()
             if idx == ''
                 let content_ = ''
             else
-                let content_ = translator#translate(idx)[0]
+                let lst_ = translator#translate(idx)
+                let content_ = len(lst_) == 1 ? lst_[0] : string(lst_)
             endif
         else
             let content_ = s:translated[idx]
@@ -97,17 +118,19 @@ fun! s:get_current_line_translation()
 endf
 " }}}
 
-" fun! translator#put_translation_ln() {{{
-fun! translator#put_translation_ln()
-    let cur_line = line('.') - 1
-    call nvim_buf_set_lines(0, cur_line, cur_line+1, v:false
-                \ , [<SID>get_current_line_translation()])
-endf
-" }}}
-
 " fun! translator#translate(src) {{{
 fun! translator#translate(src)
     echo "Translating..."
+
+    if !s:allow_translate
+        echom "call translator#translate consecutively in 1 seconds. Due to Baidu api restrictions, it maybe fails."
+    endif
+    fun! s:set_translate_flag(id)
+        let s:allow_translate = v:true
+    endfunc
+    let s:allow_translate = v:false
+    call timer_start(1000, function('s:set_translate_flag'))
+
     if type(a:src) != type('')
         echom "a:src should be a string!"
         return
@@ -119,33 +142,37 @@ fun! translator#translate(src)
 src = vim.eval('a:src')
 r = translate_safe(src)
 EOF
+    echo
     return <SID>parse_response(py3eval('r'))
 endf
 " }}}
 
 " fun s:parse_response(r) {{{
 fun! s:parse_response(r)
-    if type(a:r) != type('') || a:r == ''
-        echom "s:parse_response(r): a:r is not string or empty!   a:r=".
-                    \ string(a:r)
+    if a:r == ''
         return []
     endif
+
+    if type(a:r) != type('')
+        return ['error: response not a string => '.string(a:r)]
+    endif
+
     let r_ = eval(a:r)
     if type(r_) != type({})
-        echom "s:parse_response(r): eval(a:r) is not a dict!   eval(a:r)=".
-                    \ string(r_).
-                    \ "    a:r=".string(a:r)
-        return []
+        return ["error: response can't be parsed as a dict => ".a:r]
     endif
-    let ret = []
+
     if has_key(r_, 'trans_result')
+        let ret = []
         let ts_ = r_['trans_result']
         for t_ in ts_
             let s:translated[t_['src']] = t_['dst']
             let ret += [t_['dst']]
         endfor
+        return ret
+    else
+        return ['error: response error => '.string(r_)]
     endif
-    return ret
 endf
 " }}}
 
@@ -203,6 +230,9 @@ fun! translator#refresh_all_v2_job()
     func! s:on_stdout(job_id, data, event) dict
         let s:chunks[-1] .= a:data[0]
         call <SID>parse_response(s:chunks[-1])
+        for d in a:data[1:-2]
+            call <SID>parse_response(d)
+        endfor
         call extend(s:chunks, a:data[1:])
     endf
     func! s:on_stderr(job_id, data, event) dict

@@ -11,9 +11,9 @@ command! ZOmniwindowToggle :call omniwindow#toggle(
             \ 2 * g:omniwindow_margin,
             \ g:omniwindow_margin)
 
-command! -nargs=1 -complete=file ZTranslatorSplit
+command! -nargs=1 -complete=file ZTransSplit
             \ call translator#split('<args>')
-command! ZTranslatorPutTranslationLn call translator#put_translation_ln()
-command! ZTranslatorRefreshAll echomsg string(translator#refresh_all_v1())
-command! ZTranslatorRefreshAllAsync echomsg string(translator#refresh_all_v2_job())
-command! -nargs=1 ZTranslatorTranslate echomsg string(translator#translate('<args>'))
+command! -nargs=1 ZTransPutLn call translator#put_ln('<args>')
+command! ZTransRefreshAll echomsg string(translator#refresh_all_v1())
+command! ZTransRefreshAllAsync echomsg string(translator#refresh_all_v2_job())
+command! -nargs=1 ZTransTranslate echomsg string(translator#translate('<args>'))

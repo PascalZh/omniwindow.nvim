@@ -57,8 +57,11 @@ def get_translate_response(q):
     return r
 
 def translate_safe(q):
-    r = get_translate_response(q)
-    return r.text
+    try:
+        r = get_translate_response(q)
+        return r.text
+    except BaseException as e:
+        return e.__repr__()
 
     # try:
         # ret_json = r.json()
