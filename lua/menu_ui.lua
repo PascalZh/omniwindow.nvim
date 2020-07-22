@@ -73,30 +73,51 @@ end
 --┌─────────────────────────────────────────────────────────────┐
 --│                           ui                                │
 --└─────────────────────────────────────────────────────────────┘
+local function calc_col(menu)
+  local pos = 0
+  for i = 1, #menu.pItems do
+    pos = pos + 1
+    menu.pItems[i].col_start = pos  -- zero indexed
+    pos = pos + #menu.pItems[i].name
+    menu.pItems[i].col_end = pos - 1  -- zero indexed
+  end
+  --for i, k in ipairs(menu.pItems) do
+  --  print(tostring(k.col_start) .. ", " .. tostring(k.col_end))
+  --end
+end
+
 function M.draw_menu(menu)
   if not menu.pItems then
     do return end
   end
+
+  calc_col(menu)
+
   local lines = { "" }
   for idx,val in ipairs(menu.pItems) do
     lines[1] = lines[1] .. " " .. val.name
   end
+  api.nvim_buf_set_option(menu.buf, 'modifiable', true)
   api.nvim_buf_set_lines(menu.buf, 0, 1, false, lines)
+  api.nvim_buf_set_option(menu.buf, 'modifiable', false)
 
+  local item = menu.pItems[menu.idx]
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
-  -- TODO api.nvim_buf_add_highlight(menu.buf, menu.ns, 'hl_group', line, col_start, col_end)
+  api.nvim_buf_add_highlight(menu.buf, menu.ns, 'TermCursor', 0, item.col_start, item.col_end)
 end
 
 function M.shift_item(menu, dir)
-  local pos = 0
   menu.idx = dir == 0 and
   (menu.idx - 1 >= 1            and menu.idx - 1 or 1) or
   (menu.idx + 1 <= #menu.pItems and menu.idx + 1 or #menu.pItems)
-  for i=1, menu.idx do
-    pos = pos + #menu.pItems[menu.idx].name + 1
-  end
-  -- Current implementation is moving the cursor, maybe we can set the highlight
-  api.nvim_win_set_cursor(menu.window, {1, pos - 1})
+
+  local item = menu.pItems[menu.idx]
+
+  api.nvim_win_set_cursor(menu.window, {1, item.col_end})
+
+  api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
+  api.nvim_buf_add_highlight(menu.buf, menu.ns, 'TermCursor', 0, item.col_start, item.col_end)
+
   menu.pItems[menu.idx].callback()
 end
 
