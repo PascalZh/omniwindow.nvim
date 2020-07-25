@@ -1,7 +1,7 @@
 local M = {}
 local api = vim.api
 
-function M.create_menu(items, args)
+function M.create_menu(args, items)
   local menu = {
     buf = api.nvim_create_buf(false, true),
     opts = {
@@ -31,6 +31,7 @@ function M.create_menu(items, args)
   }
 
   menu.pItems = menu.items
+  menu.current_item = function () return menu.pItems[menu.idx] end
   menu.ns = api.nvim_create_namespace('MenuUIHighlights')
 
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
@@ -50,6 +51,9 @@ function M.open_menu(menu, enter)
     do return end
   end
   menu.window = api.nvim_open_win(menu.buf, enter or true, menu.opts)
+  api.nvim_win_set_cursor(menu.window,
+    {1, menu.current_item().col_end - 1})
+  menu.pItems[menu.idx].cb_enter()
 end
 
 function M.close_menu(menu)
@@ -57,6 +61,7 @@ function M.close_menu(menu)
     do return end
   end
   api.nvim_win_close(menu.window, false)
+  menu.pItems[menu.idx].cb_leave()
   menu.window = nil
 end
 
@@ -79,7 +84,7 @@ local function calc_col(menu)
     pos = pos + 1
     menu.pItems[i].col_start = pos  -- zero indexed
     pos = pos + #menu.pItems[i].name
-    menu.pItems[i].col_end = pos - 1  -- zero indexed
+    menu.pItems[i].col_end = pos  -- zero indexed and exclusive
   end
   --for i, k in ipairs(menu.pItems) do
   --  print(tostring(k.col_start) .. ", " .. tostring(k.col_end))
@@ -101,24 +106,27 @@ function M.draw_menu(menu)
   api.nvim_buf_set_lines(menu.buf, 0, 1, false, lines)
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
 
-  local item = menu.pItems[menu.idx]
+  local curItem = menu.current_item()
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
-  api.nvim_buf_add_highlight(menu.buf, menu.ns, 'TermCursor', 0, item.col_start, item.col_end)
+  api.nvim_buf_add_highlight(menu.buf, menu.ns,
+    'TermCursor', 0, curItem.col_start, curItem.col_end)
 end
 
 function M.shift_item(menu, dir)
+  local old_idx = menu.idx
   menu.idx = dir == 0 and
   (menu.idx - 1 >= 1            and menu.idx - 1 or 1) or
   (menu.idx + 1 <= #menu.pItems and menu.idx + 1 or #menu.pItems)
 
   local item = menu.pItems[menu.idx]
 
-  api.nvim_win_set_cursor(menu.window, {1, item.col_end})
+  api.nvim_win_set_cursor(menu.window, {1, item.col_end - 1})
 
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
   api.nvim_buf_add_highlight(menu.buf, menu.ns, 'TermCursor', 0, item.col_start, item.col_end)
 
-  menu.pItems[menu.idx].callback()
+  menu.pItems[old_idx].cb_leave()
+  menu.pItems[menu.idx].cb_enter()
 end
 
 function M.enter_item(menu)
