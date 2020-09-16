@@ -8,31 +8,23 @@ function M.create_menu(args, items)
       relative='editor', style='minimal',
       row=args.row, col=args.col, width=args.width, height=1
     },
+
     items = items or {
       {
         name = 'foo',
-        callback = function() end,
-
-        next_items = {
-          {
-            name = 'foobar',
-            callback = function() end
-          }
-        }
-      },
-      {
-        name = 'bar',
-        callback = function() return "foobar" end,
+        cb_enter = function() end,
+        cb_leave = function() end,
 
         next_items = nil
       }
     },
-    idx = 1
+
+    idx = 1,
+    pItems = nil,
+    ns = api.nvim_create_namespace('MenuUIHighlights')
   }
 
   menu.pItems = menu.items
-  menu.current_item = function () return menu.pItems[menu.idx] end
-  menu.ns = api.nvim_create_namespace('MenuUIHighlights')
 
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
   return menu
@@ -50,9 +42,10 @@ function M.open_menu(menu, enter)
   if (M.is_menu_open(menu)) then
     do return end
   end
+  local curItem = menu.pItems[menu.idx]
   menu.window = api.nvim_open_win(menu.buf, enter or true, menu.opts)
   api.nvim_win_set_cursor(menu.window,
-    {1, menu.current_item().col_end - 1})
+    {1, curItem.col_end - 1})
   menu.pItems[menu.idx].cb_enter()
 end
 
@@ -106,7 +99,7 @@ function M.draw_menu(menu)
   api.nvim_buf_set_lines(menu.buf, 0, 1, false, lines)
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
 
-  local curItem = menu.current_item()
+  local curItem = menu.pItems[menu.idx]
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
   api.nvim_buf_add_highlight(menu.buf, menu.ns,
     'TermCursor', 0, curItem.col_start, curItem.col_end)
