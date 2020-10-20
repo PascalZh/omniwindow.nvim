@@ -8,6 +8,7 @@ mapping when exiting insert mode.
 - [x] fix the bugs that `easy_jk` module will leave trailing spaces when escape
 insert mode from a indented blank line.
 - [ ] implement `note.lua`
+- [ ] implement `fancy_q`
 
 ## `note.vim`
 ### Outline
