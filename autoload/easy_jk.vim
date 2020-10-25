@@ -48,3 +48,21 @@ endfunc
 func! s:work_with_other_plugin()
     call blitz#on_input_exit()
 endfunc
+
+func! easy_jk#cmap_j()
+    let s:j_pressed = v:true
+    call timer_start(g:easy_jk_timeout, function("<SID>reset_j_pressed"))
+    if s:k_pressed == v:true
+        return "\<C-c>"
+    endif
+    return "j"
+endfunc
+
+func! easy_jk#cmap_k()
+    let s:k_pressed = v:true
+    call timer_start(g:easy_jk_timeout, function("<SID>reset_k_pressed"))
+    if s:j_pressed == v:true
+        return "\<C-c>"
+    endif
+    return "k"
+endfunc
