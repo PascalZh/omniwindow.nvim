@@ -3,6 +3,7 @@ local api = vim.api
 
 M.LEFT = 0
 M.RIGHT = 1
+M.highlight = nil -- TODO: create common highlight scheme
 
 function M.create_menu(args, apps)
   local menu = {
@@ -12,6 +13,7 @@ function M.create_menu(args, apps)
       relative='editor', style='minimal',
       row=args.row, col=args.col, width=args.width, height=1
     },
+    ns = api.nvim_create_namespace('MenuUIHighlights'),
 
     apps = apps or {
       {
@@ -21,9 +23,13 @@ function M.create_menu(args, apps)
         cb_leave = function() end,
       }
     },
-
     app_idx = 1,
-    ns = api.nvim_create_namespace('MenuUIHighlights')
+
+    ui = {
+      header = ' ',
+      left_border = '',  -- #left_border must equal #right_border
+      right_border = '',
+    },
   }
 
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
@@ -70,14 +76,16 @@ end
 --┌─────────────────────────────────────────────────────────────┐
 --│                           ui                                │
 --└─────────────────────────────────────────────────────────────┘
-local function calc_col(menu)
-  local pos = 0
+local function calc_app_col_range(menu)
+  -- app is displayed in an array of chars, this app caculate the range of chars
+  -- the range will be used to highlight the app
+  local pos = #menu.ui.header  -- zero indexed and exclusive
   local apps = menu.apps
   for i = 1, #apps do
     pos = pos + 1
-    apps[i].col_start = pos  -- zero indexed
-    pos = pos + #apps[i].name
-    apps[i].col_end = pos  -- zero indexed and exclusive
+    apps[i].col_start = pos
+    pos = pos + #apps[i].name + #menu.ui.left_border + #menu.ui.right_border
+    apps[i].col_end = pos
   end
 end
 
@@ -89,11 +97,11 @@ local function highlight_cur_app(menu)
 end
 
 function M.draw_menu(menu)
-  calc_col(menu)
+  calc_app_col_range(menu)
 
-  local lines = { "" }
+  local lines = { menu.ui.header }   -- menu_ui only has one line
   for idx,val in ipairs(menu.apps) do
-    lines[1] = lines[1] .. " " .. val.name
+    lines[1] = lines[1] .. " " .. menu.ui.left_border .. val.name .. menu.ui.right_border
   end
   api.nvim_buf_set_option(menu.buf, 'modifiable', true)
   api.nvim_buf_set_lines(menu.buf, 0, 1, false, lines)
@@ -107,7 +115,7 @@ function M.shift_item(menu, dir)
   local i = menu.app_idx
   local n = #apps
   menu.app_idx = dir == M.LEFT and
-    (i - 1 >= 1 and i - 1 or 1) or (i + 1 <= n and i + 1 or n)
+  (i - 1 >= 1 and i - 1 or 1) or (i + 1 <= n and i + 1 or n)
 
   highlight_cur_app(menu)
   apps[i].cb_leave()
