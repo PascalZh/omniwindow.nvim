@@ -3,7 +3,6 @@ local api = vim.api
 
 M.LEFT = 0
 M.RIGHT = 1
-M.highlight = nil -- TODO: create common highlight scheme
 
 function M.create_menu(args, apps)
   local menu = {
@@ -27,10 +26,17 @@ function M.create_menu(args, apps)
 
     ui = {
       header = ' ',
-      left_border = '',  -- #left_border must equal #right_border
+      left_border = '',
       right_border = '',
+      highlight = { '#3D07E8', '#1FE807' },
     },
   }
+  local hi1 = menu.ui.highlight[1]
+  local hi2 = menu.ui.highlight[2]
+  api.nvim_command('hi OmniwindowMenuUI_1f guifg='..hi1)
+  api.nvim_command('hi OmniwindowMenuUI_1b guibg='..hi1)
+  api.nvim_command('hi OmniwindowMenuUI_2f guifg='..hi2)
+  api.nvim_command('hi OmniwindowMenuUI_2b guibg='..hi2)
 
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
   return menu
@@ -79,21 +85,44 @@ end
 local function calc_app_col_range(menu)
   -- app is displayed in an array of chars, this app caculate the range of chars
   -- the range will be used to highlight the app
-  local pos = #menu.ui.header  -- zero indexed and exclusive
+  local pos = string.len(menu.ui.header)  -- zero indexed and exclusive
   local apps = menu.apps
   for i = 1, #apps do
     pos = pos + 1
     apps[i].col_start = pos
-    pos = pos + #apps[i].name + #menu.ui.left_border + #menu.ui.right_border
+    pos = pos + string.len(apps[i].name) + string.len(menu.ui.left_border) +
+      string.len(menu.ui.right_border)
     apps[i].col_end = pos
   end
 end
 
 local function highlight_cur_app(menu)
-  local cur_app = menu.apps[menu.app_idx]
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
+
+  local n_h = string.len(menu.ui.header)
+  local n_l = string.len(menu.ui.left_border)
+  local n_r = string.len(menu.ui.right_border)
   api.nvim_buf_add_highlight(menu.buf, menu.ns,
-    'ErrorMsg', 0, cur_app.col_start, cur_app.col_end)
+    'OmniwindowMenuUI_1f', 0, 0, n_h)
+
+  for i, app in ipairs(menu.apps) do
+    local s, e = app.col_start, app.col_end
+    local hi_b, hi_f
+    if i == menu.app_idx then
+      hi_b = 'OmniwindowMenuUI_2b'
+      hi_f = 'OmniwindowMenuUI_2f'
+    else
+      hi_b = 'OmniwindowMenuUI_1b'
+      hi_f = 'OmniwindowMenuUI_1f'
+    end
+
+    api.nvim_buf_add_highlight(menu.buf, menu.ns,
+      hi_f, 0, s, s+n_l)
+    api.nvim_buf_add_highlight(menu.buf, menu.ns,
+      hi_f, 0, e-n_r, e)
+    api.nvim_buf_add_highlight(menu.buf, menu.ns,
+      hi_b, 0, s+n_l, e-n_r)
+  end
 end
 
 function M.draw_menu(menu)
