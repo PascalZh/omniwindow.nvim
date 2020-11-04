@@ -85,7 +85,9 @@ end
 local function calc_app_col_range(menu)
   -- app is displayed in an array of chars, this app caculate the range of chars
   -- the range will be used to highlight the app
-  local pos = string.len(menu.ui.header)  -- zero indexed and exclusive
+  local pos = string.len(menu.ui.header)
+  -- byte indexed and exclusive since nvim_buf_add_highlight use byte-indexing too.
+
   local apps = menu.apps
   for i = 1, #apps do
     pos = pos + 1
