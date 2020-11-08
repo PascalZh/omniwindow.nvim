@@ -25,18 +25,18 @@ function M.create_menu(args, apps)
     app_idx = 1,
 
     ui = {
-      header = ' ',
+      header = '███ ',
       left_border = '',
       right_border = '',
-      highlight = { '#3D07E8', '#1FE807' },
+      highlight = { '#3D07E8', '#11d807' },
     },
   }
   local hi1 = menu.ui.highlight[1]
   local hi2 = menu.ui.highlight[2]
-  api.nvim_command('hi OmniwindowMenuUI_1f guifg='..hi1)
-  api.nvim_command('hi OmniwindowMenuUI_1b guibg='..hi1)
-  api.nvim_command('hi OmniwindowMenuUI_2f guifg='..hi2)
-  api.nvim_command('hi OmniwindowMenuUI_2b guibg='..hi2)
+  api.nvim_command('hi OmniwindowMenuUI_1f guifg=' .. hi1)
+  api.nvim_command('hi OmniwindowMenuUI_1b guibg=' .. hi1 .. ' guifg=#ffffff')
+  api.nvim_command('hi OmniwindowMenuUI_2f guifg=' .. hi2)
+  api.nvim_command('hi OmniwindowMenuUI_2b guibg=' .. hi2 .. ' guifg=#ffffff')
 
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
   return menu

@@ -57,9 +57,7 @@ function foo.cb_leave()
   api.nvim_win_close(foo.win, false)
 end
 
---┌─────────────────────────────────────────────────────────┐
---│                         menu                            │
---└─────────────────────────────────────────────────────────┘
+------------------------------menu--------------------------------
 M.menu = menu_ui.create_menu({
   row = 2, col = 10, width = api.nvim_get_option("columns") - 20
 }, 
