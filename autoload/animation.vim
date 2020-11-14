@@ -18,24 +18,22 @@ let s:interval = 1000 / g:animation_fps
 let s:lock = 0
 let s:task_queue = []
 
-function s:animate(timer_id, start, end, duration, f, action, t0, state)
-  let y_ = (a:end - a:start)
+function s:anim_loop(timer_id, start, end, duration, f, action, t0, state)
   let elapsed = s:time() - a:t0
-  let y = float2nr(a:f(y_, a:duration, elapsed) + a:start)
+  let y = float2nr(a:f(a:end - a:start, a:duration, elapsed) + a:start)
   let state_ = a:action(y, a:state)
 
   if elapsed < a:duration
-    call timer_start(s:interval, {id -> s:animate(id, a:start, a:end, a:duration, a:f, a:action, a:t0, state_)})
-  " Ensure a:action(a:end, state) is called
-  else
+    call timer_start(s:interval, {id -> s:anim_loop(id, a:start, a:end, a:duration, a:f, a:action, a:t0, state_)})
+  else " Ensure a:action(a:end, state) is called
     if y != a:end
-      let state = a:action(a:end, a:state)
+      call a:action(a:end, a:state)
     endif
 
     let s:lock = 0
     if g:animation_task_queue && s:task_queue != []
       let arg = remove(s:task_queue, 0)
-      call animation#animate_with_f(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5])
+      call animation#animate(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5])
 
       if s:task_queue == []
         let g:animation_task_queue = 0
@@ -44,7 +42,7 @@ function s:animate(timer_id, start, end, duration, f, action, t0, state)
   endif
 endfunction
 
-function! animation#animate_with_f(start, end, duration, f, action, cmd) abort
+function! animation#animate(start, end, duration, f, action, cmd) abort
   if s:lock == 1 && g:animation_lock
     let s:task_queue += [[a:start, a:end, a:duration, a:f, a:action, a:cmd]]
     return
@@ -57,11 +55,11 @@ function! animation#animate_with_f(start, end, duration, f, action, cmd) abort
   let t0 = s:time()
   let state = start_
 
-  call timer_start(s:interval, {id -> s:animate(id, start_, end_, a:duration, a:f, a:action, t0, state)})
+  call timer_start(s:interval, {id -> s:anim_loop(id, start_, end_, a:duration, a:f, a:action, t0, state)})
 endfunction
 
 function! animation#cmd(cmd)
-  call animation#animate_with_f({->0}, {->0}, 0, {->0}, {->0}, a:cmd)
+  call animation#animate({->0}, {->0}, 0, {->0}, {->0}, a:cmd)
 endfunction
 
 function! s:resize(y, state, vertical)
@@ -78,13 +76,13 @@ function! s:resize(y, state, vertical)
 endfunction
 
 function! animation#vertical_resize_delta(delta)
-  call animation#animate_with_f({-> winwidth(0)}, {-> winwidth(0) + a:delta},
+  call animation#animate({-> winwidth(0)}, {-> winwidth(0) + a:delta},
         \ g:animation_duration, 
         \ function(g:animation_f), {y, state -> s:resize(y, state, 1)}, '')
 endfunction
 
 function! animation#resize_delta(delta)
-  call animation#animate_with_f({-> winheight(0)}, {-> winheight(0) + a:delta},
+  call animation#animate({-> winheight(0)}, {-> winheight(0) + a:delta},
         \ g:animation_duration, 
         \ function(g:animation_f), {y, state -> s:resize(y, state, 0)}, '')
 endfunction
@@ -105,12 +103,12 @@ function! s:scroll(y, state, up)
 endfunction
 
 function! animation#scroll_up(delta)
-  call animation#animate_with_f({-> 0}, {-> a:delta}, g:animation_duration,
+  call animation#animate({-> 0}, {-> a:delta}, g:animation_duration,
         \ function(g:animation_f), {y, state -> s:scroll(y, state, 1)}, '')
 endfunction
 
 function! animation#scroll_down(delta)
-  call animation#animate_with_f({-> 0}, {-> a:delta}, g:animation_duration,
+  call animation#animate({-> 0}, {-> a:delta}, g:animation_duration,
         \ function(g:animation_f), {y, state -> s:scroll(y, state, 0)}, '')
 endfunction
 

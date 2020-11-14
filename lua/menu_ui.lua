@@ -79,33 +79,32 @@ function M.toggle_menu(menu)
   end
 end
 
---┌─────────────────────────────────────────────────────────────┐
 --│                           ui                                │
---└─────────────────────────────────────────────────────────────┘
 local function calc_app_col_range(menu)
   -- app is displayed in an array of chars, this app caculate the range of chars
   -- the range will be used to highlight the app
-  local pos = string.len(menu.ui.header)
+  local pos = #menu.ui.header
   -- byte indexed and exclusive since nvim_buf_add_highlight use byte-indexing too.
 
   local apps = menu.apps
   for i = 1, #apps do
     pos = pos + 1
     apps[i].col_start = pos
-    pos = pos + string.len(apps[i].name) + string.len(menu.ui.left_border) +
-      string.len(menu.ui.right_border)
+    pos = pos + #apps[i].name + #menu.ui.left_border + #menu.ui.right_border
     apps[i].col_end = pos
   end
 end
 
-local function highlight_cur_app(menu)
+local function hi_cur_app(menu)
   api.nvim_buf_clear_namespace(menu.buf, menu.ns, 0, -1)
+  local hi = function(hl, s, e)
+    api.nvim_buf_add_highlight(menu.buf, menu.ns, hl, 0, s, e)
+  end
 
-  local n_h = string.len(menu.ui.header)
-  local n_l = string.len(menu.ui.left_border)
-  local n_r = string.len(menu.ui.right_border)
-  api.nvim_buf_add_highlight(menu.buf, menu.ns,
-    'OmniwindowMenuUI_1f', 0, 0, n_h)
+  local n_h = #menu.ui.header
+  local n_l = #menu.ui.left_border
+  local n_r = #menu.ui.right_border
+  hi('OmniwindowMenuUI_1f', 0, n_h)
 
   for i, app in ipairs(menu.apps) do
     local s, e = app.col_start, app.col_end
@@ -118,12 +117,9 @@ local function highlight_cur_app(menu)
       hi_f = 'OmniwindowMenuUI_1f'
     end
 
-    api.nvim_buf_add_highlight(menu.buf, menu.ns,
-      hi_f, 0, s, s+n_l)
-    api.nvim_buf_add_highlight(menu.buf, menu.ns,
-      hi_f, 0, e-n_r, e)
-    api.nvim_buf_add_highlight(menu.buf, menu.ns,
-      hi_b, 0, s+n_l, e-n_r)
+    hi(hi_f, s    , s+n_l)
+    hi(hi_b, s+n_l, e-n_r)
+    hi(hi_f, e-n_r, e    )
   end
 end
 
@@ -138,7 +134,7 @@ function M.draw_menu(menu)
   api.nvim_buf_set_lines(menu.buf, 0, 1, false, lines)
   api.nvim_buf_set_option(menu.buf, 'modifiable', false)
 
-  highlight_cur_app(menu)
+  hi_cur_app(menu)
 end
 
 function M.shift_item(menu, dir)
@@ -146,9 +142,9 @@ function M.shift_item(menu, dir)
   local i = menu.app_idx
   local n = #apps
   menu.app_idx = dir == M.LEFT and
-  (i - 1 >= 1 and i - 1 or 1) or (i + 1 <= n and i + 1 or n)
+    (i - 1 >= 1 and i - 1 or 1) or (i + 1 <= n and i + 1 or n)
 
-  highlight_cur_app(menu)
+  hi_cur_app(menu)
   apps[i].cb_leave()
   apps[menu.app_idx].cb_enter()
 end
